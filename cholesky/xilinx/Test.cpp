@@ -5,42 +5,48 @@
 
 #include "Cholesky.h"
 
-void Reference(float const a[], float const b[], float c[]) {
-  for (int n = 0; n < N; ++n) {
-    for (int m = 0; m < M; ++m) {
-      c[n * M + m] = 0;
-      for (int k = 0; k < K; ++k) {
-        c[n * M + m] += a[n * K + k] * b[k * M + m];
+void Reference(float A[]) {
+  A[0] = sqrt(A[0]);
+  for (int i = 1; i < N; i++) {
+    for (int j = 0; j < i; j++) {
+      float dot = 0;
+      for (int k = 0; k < j; k++) {
+        dot += A[i * N + k] * A[i * N + k];
       }
+      A[i * N + j] -= dot;
+      A[i * N + j] /= A[j * N + j];
     }
+    float dot = 0;
+    for (int k = 0; k < i; k++) {
+      dot += A[i * N + k] * A[i * N + k];
+    }
+    A[i * N + i] -= dot;
+    A[i * N + i] = sqrt(A[i * N + i]);
   }
 }
 
 int main() {
-  std::vector<float> a(N * K);
-  std::vector<float> b(K * M);
-  std::vector<float> c(N * M);
-  std::vector<float> c_ref(N * M, 0);
+  std::vector<float> A(N * N);
+  std::vector<float> A_ref(N * N);
 
-  std::random_device rd;
   std::default_random_engine rng;
   std::uniform_real_distribution<float> dist;
-  std::for_each(a.begin(), a.end(), [&](float &i) { i = dist(rng); });
-  std::for_each(b.begin(), b.end(), [&](float &i) { i = dist(rng); });
+  std::for_each(A.begin(), A.end(), [&](float &i) { i = dist(rng); });
+  A_ref = A;
 
   // Run simulation
-  Cholesky(a.data(), reinterpret_cast<Vec_t const *>(&b[0]),
-           reinterpret_cast<Vec_t *>(&c[0]));
+  Cholesky(A.data());
 
   // Reference implementation for comparing the result
-  Reference(a.data(), b.data(), c_ref.data());
+  Reference(A_ref.data());
 
   // Verify correctness
-  for (int i = 0; i < N * M; ++i) {
-    const auto diff = std::abs(c_ref[i] - c[i]);
+  for (int i = 0; i < N * N; i++) {
+    const auto diff = std::abs(A_ref[i] - A[i]);
     if (diff >= 1e-3) {
-      std::cout << "Mismatch at (" << i / M << ", " << i % M << "): " << c[i]
-                << " (should be " << c_ref[i] << ").\n";
+      std::cout << "Mismatch at (" << i / N << ", " << i % N << "): "
+                << A[i]
+                << " (should be " << A_ref[i] << ").\n";
       return 1;
     }
   }
