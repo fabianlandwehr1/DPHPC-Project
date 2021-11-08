@@ -1,0 +1,10 @@
+# Build directories
+build/
+cmake-build-debug/
+
+# IDE files
+.idea/
+
+# System files
+.DS_Store
+._*
