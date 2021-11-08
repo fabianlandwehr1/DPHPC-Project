@@ -13,3 +13,16 @@ mkdir build
 cd buid
 cmake ..
 ```
+
+Build and run test (example):
+
+```shell
+make TestCholeskyXilinx
+cholesky/TestCholeskyXilinx
+```
+
+Synthesize HLS for Xilinx:
+
+```shell
+make synthesize_cholesky
+```
