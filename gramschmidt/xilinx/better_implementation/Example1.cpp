@@ -22,6 +22,22 @@ void gramschmidt_naive(float *A, float *Q, float *R) {
       Q[k*N+i] = A[k*N+i]/norm;
     } 
     float squared_norm = squared_norms[i];
+
+    for(int k=0; k<N; k++){
+      float factor = A[k*N+i]/squared_norm;
+      for(int j=i+1; j<N; j++){
+        #pragma HLS PIPELINE II = 1
+        A[k*N+j] -= squared_norms[j]*factor;
+        #pragma HLS DEPENDENCE variable=A false
+      }
+    }
+
+    for(int j=i+1; j<N; j++){
+      #pragma HLS PIPELINE II = 1
+      R[i*N+j] = squared_norms[j]/norm;
+      #pragma HLS DEPENDENCE variable=R false
+    }
+    /*
     for(int j=i+1; j<N; j++){
       float factor = squared_norms[j]/squared_norm;
       for(int k=0; k<N; k++){
@@ -32,6 +48,7 @@ void gramschmidt_naive(float *A, float *Q, float *R) {
       R[i*N+j] = factor*norm;
       #pragma HLS DEPENDENCE variable=R false
     }
+    */
     
   }
 }
