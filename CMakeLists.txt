@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(hls_tutorial_examples)
+project(DPHPC-Project)
 
 # Options
 set(XILINX_PART_NAME "xcvu9p-flgb2104-2-i" CACHE STRING "Part name for HLS.")
