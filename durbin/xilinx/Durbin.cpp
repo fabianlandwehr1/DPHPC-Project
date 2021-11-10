@@ -4,6 +4,30 @@
 
 using hlslib::Stream;
 
+// Reads into the head of the pipeline
+void ReadMemory(float const *in, Stream<float> &stream, int k) {
+  for (int i = 0; i < k; i++) {
+    #pragma HLS PIPELINE II=1
+    stream.Push(in[i]);
+  }
+}
+
+// Update each element of y
+void UpdateY(Stream<float> &in, Stream<float> &out, float *y, float alpha, int k) {
+  for (int i = 0; i < k; i++) {
+    #pragma HLS PIPELINE II=1
+    out.Push(in.Pop() + alpha * y[k - i - 1]);
+  }
+}
+
+// Writes from the tail of the pipeline
+void WriteMemory(Stream<float> &stream, float *out, int k) {
+  for (int i = 0; i < k; i++) {
+    #pragma HLS PIPELINE II=1
+    out[i] = stream.Pop();
+  }
+}
+
 void ProcessingElement(float const r[N], float y[N]) {
 
   float alpha = -r[0];
@@ -18,27 +42,20 @@ void ProcessingElement(float const r[N], float y[N]) {
 
     // alpha = -(r[k] + np.dot(np.flip(r[:k]), y[:k])) / beta
     float dot = 0;
-    for (int i = 0; i < k; ++i) {
+    for (int i = 0; i < k; i++) {
       #pragma HLS PIPELINE II=3
       dot += r[k - i - 1] * y[i];
     }
     alpha = -(r[k] + dot) / beta;
 
     // y[:k] += alpha * np.flip(y[:k])
+    HLSLIB_DATAFLOW_INIT();
     Stream<float> y_in;
     Stream<float> y_out;
-    for (int i = 0; i < k; i++) {
-      #pragma HLS PIPELINE II=1
-      y_in.Push(y[i]);
-    }
-    for (int i = 0; i < k; i++) {
-      #pragma HLS PIPELINE II=1
-      y_out.Push(y_in.Pop() + alpha * y[k - i - 1]);
-    }
-    for (int i = 0; i < k; i++) {
-      #pragma HLS PIPELINE II=1
-      y[i] = y_out.Pop();
-    }
+    HLSLIB_DATAFLOW_FUNCTION(ReadMemory, y, y_in, k);
+    HLSLIB_DATAFLOW_FUNCTION(UpdateY, y_in, y_out, y, alpha, k);
+    HLSLIB_DATAFLOW_FUNCTION(WriteMemory, y_out, y, k);
+    HLSLIB_DATAFLOW_FINALIZE();
 
     // y[k] = alpha
     y[k] = alpha;
