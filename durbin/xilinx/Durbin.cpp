@@ -3,17 +3,25 @@
 #include "hlslib/xilinx/Stream.h"
 
 using hlslib::Stream;
+void reverseArray(float y[N], float revY[N], int k)
+{
+  for(int i=0;i<k;i++)
+  {
+    #pragma HLS UNROLL
+    revY[i] = y[k-1-i];
+  }
+}
 
 void ProcessingElement(float const r[N], float y[N]) {
   
   float beta = 1.0;
   float alpha = -r[0];
   y[0] = -r[0];
+  float reverseArr[N];
 
   for (int i=1;i<N;i++)
   {
 
-    #pragma HLS PIPELINE II=1
     beta *= (1.0 - alpha * alpha);
     float dotProdAccumulator = 0.0;
 
@@ -23,16 +31,15 @@ void ProcessingElement(float const r[N], float y[N]) {
       dotProdAccumulator += y[j] * r[i-1 - j];
     } 
     
-    #pragma HLS PIPELINE II=1
     alpha = -1 * (r[i] + dotProdAccumulator) / beta;
 
+    reverseArray(y, reverseArr, i);
     for(int j=0;j<i;j++)
     {
-      #pragma HLS PIPELINE II=19
-      y[j] += alpha * y[i-1 -j];
+      #pragma HLS UNROLL
+      y[j] += alpha * reverseArr[j];
     } 
 
-    #pragma HLS PIPELINE II=1
     y[i] = alpha;
   }
 
