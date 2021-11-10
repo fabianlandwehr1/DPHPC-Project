@@ -3,44 +3,46 @@
 #include "hlslib/xilinx/Stream.h"
 
 using hlslib::Stream;
-void reverseArray(float y[N], float revY[N], int k)
-{
-  for(int i=0;i<k;i++)
-  {
-    #pragma HLS UNROLL
-    revY[i] = y[k-1-i];
-  }
-}
 
 void ProcessingElement(float const r[N], float y[N]) {
-  
-  float beta = 1.0;
+
   float alpha = -r[0];
+  float beta = 1.0;
   y[0] = -r[0];
-  float reverseArr[N];
 
-  for (int i=1;i<N;i++)
-  {
+  // for k in range(1, r.shape[0]):
+  for (int k = 1; k < N; k++) {
 
-    beta *= (1.0 - alpha * alpha);
-    float dotProdAccumulator = 0.0;
+    // beta *= 1.0 - alpha * alpha
+    beta *= 1.0 - alpha * alpha;
 
-    for(int j=0;j<i;j++)
-    {
+    // alpha = -(r[k] + np.dot(np.flip(r[:k]), y[:k])) / beta
+    float dot = 0;
+    for (int i = 0; i < k; ++i) {
       #pragma HLS PIPELINE II=3
-      dotProdAccumulator += y[j] * r[i-1 - j];
-    } 
-    
-    alpha = -1 * (r[i] + dotProdAccumulator) / beta;
+      dot += r[k - i - 1] * y[i];
+    }
+    alpha = -(r[k] + dot) / beta;
 
-    reverseArray(y, reverseArr, i);
-    for(int j=0;j<i;j++)
-    {
-      #pragma HLS UNROLL
-      y[j] += alpha * reverseArr[j];
-    } 
+    // y[:k] += alpha * np.flip(y[:k])
+    Stream<float> y_in;
+    Stream<float> y_out;
+    for (int i = 0; i < k; i++) {
+      #pragma HLS PIPELINE II=1
+      y_in.Push(y[i]);
+    }
+    for (int i = 0; i < k; i++) {
+      #pragma HLS PIPELINE II=1
+      y_out.Push(y_in.Pop() + alpha * y[k - i - 1]);
+    }
+    for (int i = 0; i < k; i++) {
+      #pragma HLS PIPELINE II=1
+      y[i] = y_out.Pop();
+    }
 
-    y[i] = alpha;
+    // y[k] = alpha
+    y[k] = alpha;
+
   }
 
 }
@@ -53,7 +55,6 @@ void Durbin(float const *r, float *y) {
   #pragma HLS INTERFACE s_axilite port=y bundle=control
   #pragma HLS INTERFACE s_axilite port=return bundle=control
 
-  #pragma HLS DATAFLOW
   ProcessingElement(r, y);
 
 }
