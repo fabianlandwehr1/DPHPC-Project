@@ -18,7 +18,7 @@ void gramschmidt_naive(float *A, float *Q, float *R) {
       Q[j*N+k] = A[j*N+k]/R[k*N+k];
     }
     for(int j=k;j<N; j++){ //Note that the report is not able to caputure the value of k at compile time. Therefore there will be min and max.
-      dot_product = 0.0   //BUT WE CAN STILL CALCULATE THE CORRECT LOOP LETENCY BY LINEAR INTERPOLATING.
+      dot_product = 0.0;   //BUT WE CAN STILL CALCULATE THE CORRECT LOOP LETENCY BY LINEAR INTERPOLATING.
       for(int i=0; i<N; i++){
         float val = Q[i*N+k];
         float val2 = A[i*N+j];
