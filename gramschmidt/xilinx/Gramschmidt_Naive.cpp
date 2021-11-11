@@ -2,7 +2,7 @@
 #include <math.h> 
 constexpr int N = 64;
 
-void gramschmidt_naive(float *A, float *Q, float *R) {
+void Gramschmidt(float *A, float *Q, float *R) {
 
   for(int k=0; k<N; k++){
     float dot_product = 0.0;
