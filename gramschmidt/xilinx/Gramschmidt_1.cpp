@@ -2,7 +2,7 @@
 #include <math.h> 
 constexpr int N = 64;
 
-void gramschmidt_naive(float *A, float *Q, float *R) {
+void compute(float *A, float *Q, float *R) {
 
   for(int k=0; k<N; k++){
     float dot_product = 0.0;
@@ -18,7 +18,7 @@ void gramschmidt_naive(float *A, float *Q, float *R) {
       Q[j*N+k] = A[j*N+k]/R[k*N+k];
     }
     for(int j=k;j<N; j++){ //Note that the report is not able to caputure the value of k at compile time. Therefore there will be min and max.
-      dot_product = 0.0   //BUT WE CAN STILL CALCULATE THE CORRECT LOOP LETENCY BY LINEAR INTERPOLATING.
+      dot_product = 0.0;   //BUT WE CAN STILL CALCULATE THE CORRECT LOOP LETENCY BY LINEAR INTERPOLATING.
       for(int i=0; i<N; i++){
         float val = Q[i*N+k];
         float val2 = A[i*N+j];
@@ -36,3 +36,13 @@ void gramschmidt_naive(float *A, float *Q, float *R) {
 
 }
 
+void Gramschmidt_1(float *A, float *Q, float *R) {
+  #pragma HLS INTERFACE m_axi port=A bundle=gmem0 offset=slave
+  #pragma HLS INTERFACE m_axi port=Q bundle=gmem1 offset=slave
+  #pragma HLS INTERFACE m_axi port=R bundle=gmem2 offset=slave
+  #pragma HLS INTERFACE s_axilite port=A
+  #pragma HLS INTERFACE s_axilite port=Q
+  #pragma HLS INTERFACE s_axilite port=R
+  #pragma HLS INTERFACE s_axilite port=return
+  compute(A,Q,R);
+}
