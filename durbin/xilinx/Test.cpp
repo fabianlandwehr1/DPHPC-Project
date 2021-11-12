@@ -73,7 +73,7 @@ int main() {
   // Verify correctness
   for (int i = 0; i < N; i++) {
     const auto diff = std::abs(y_ref[i] - y[i]);
-    if (diff >= 1e-3) {
+    if (diff >= 1e-3 || std::isnan(y_ref[i]) != std::isnan(y[i])) {
       std::cout << "Mismatch at (" << i << "): "
                 << y[i]
                 << " (should be " << y_ref[i] << ").\n";
