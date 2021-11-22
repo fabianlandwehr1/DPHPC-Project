@@ -108,6 +108,19 @@ void InitYAlphaBeta(Stream<float> &y, Stream<float> &alpha, Stream<float> &beta,
 //   // std::cout<<print;
 // }
 
+void InitR(Stream<float> r_mod[N], const float r[N])
+{
+  r_mod[0].Push(r[0]);
+    for(int i=1;i<N;i++)
+    {
+      for(int j=0;j<i;j++)
+      {
+        r_mod[i].Push(r[i-1-j]);
+      }
+      r_mod[i].Push(r[i]);
+    } 
+}
+
 void DurbinMod(float const *r, float *y_out) {
 
   #pragma HLS INTERFACE m_axi port=r offset=slave bundle=gmem0
@@ -146,22 +159,14 @@ void DurbinMod(float const *r, float *y_out) {
 
     HLSLIB_DATAFLOW_INIT();
     
-    r_mod[0].Push(r[0]);
-    for(int i=1;i<N;i++)
-    {
-      for(int j=0;j<i;j++)
-      {
-        r_mod[i].Push(r[i-1-j]);
-      }
-      r_mod[i].Push(r[i]);
-    }
 
+    HLSLIB_DATAFLOW_FUNCTION(InitR, r_mod, r);
     
     HLSLIB_DATAFLOW_FUNCTION(InitYAlphaBeta, y[0], alpha[0], beta[0], r_mod[0]);
     // for k in range(1, r.shape[0])
     for(int k=1;k<N;k++)
     {
-      #pragma HLS DEPENDENCE variable=r false
+      // #pragma HLS DEPENDENCE variable=r false
       // #pragma HLS UNROLL
         // std::cout<<"Unrolling k "<< k<<std::endl;
       HLSLIB_DATAFLOW_FUNCTION(ProcessingElement, r_mod[k], y[k-1], y_unupdated[k-1], beta[k-1], beta[k], alpha[k-1], alpha_interim[k-1], alpha[k], N, k);
