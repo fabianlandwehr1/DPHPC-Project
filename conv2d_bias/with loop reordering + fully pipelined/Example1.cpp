@@ -38,6 +38,9 @@ void conv2d(float const *input, float const *weights, float const *bias, float *
           }
         }
         for(int q=0; q<C_out; q++){
+          val[q] = val[q]+bias[q]; 
+        }
+        for(int q=0; q<C_out; q++){
           output[i*o_o1+j*o_o2+p*o_o3+q] = val[q];
         }
       }
