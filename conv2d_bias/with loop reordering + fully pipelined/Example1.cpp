@@ -29,7 +29,7 @@ void conv2d(float const *input, float const *weights, float const *bias, float *
         for(int k1=0; k1<K; k1++){
           for(int k2=0; k2<K; k2++){
             for(int c=0; c<C_in; c++){
-              float curr = input[i*i_o1+(j+k1)*i_o2+(p+k2)*i_o3+c]
+              float curr = input[i*i_o1+(j+k1)*i_o2+(p+k2)*i_o3+c];
               for(int q=0; q<C_out; q++){
                 val[q] += curr*weights[k1*w_o1+k2*w_o2+c*w_o3+q];
                 #pragma HLS DEPENDENCE variable=val false
