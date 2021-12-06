@@ -315,23 +315,30 @@ int main() {
   // Reference implementation for comparing the result
   Reference(u_ref.data(), v_ref.data(), p_ref.data());
 
+  CavityFlow(u.data(), v.data(), p.data());
+
   // Verify correctness
-  for (int i = 0; i < NY; i++) {
-    for (int j = 0; j < NX; j++) {  
-        std::cout<<u_ref[i*NX + j]<<", ";
-        // return 1;
+  for (int i = 0; i < NX*NY; i++) {
+    const auto diff = std::abs(u_ref[i] - u[i]);
+    if (diff >= 1e-3 || std::isnan(u_ref[i]) != std::isnan(u[i])) {
+      std::cout << "Mismatch for matrix u at (" << i / NX << "," << i % NX  << "): "
+                << u[i]
+                << " (should be " << u_ref[i] << ").\n";
+      return 1;
     }
-    std::cout<<std::endl;
   }
-  std::cout<<std::endl<<std::endl;
-  for (int i = 0; i < NY; i++) {
-    for (int j = 0; j < NX; j++) {  
-        std::cout<<v_ref[i*NX + j]<<", ";
-        // return 1;
+  std::cout<< "\'u\' Matrix correct... Going for \'v\'" <<std::endl;
+  for (int i = 0; i < NX*NY; i++) {
+    const auto diff = std::abs(v_ref[i] - v[i]);
+    if (diff >= 1e-3 || std::isnan(v_ref[i]) != std::isnan(v[i])) {
+      std::cout << "Mismatch for matrix v at (" << i / NX << "," << i % NX  << "): "
+                << v[i]
+                << " (should be " << v_ref[i] << ").\n";
+      return 1;
     }
-    std::cout<<std::endl;
   }
-  // std::cout << "Test ran successfully.\n";
+  
+  std::cout << "Test ran successfully.\n";
 
   return 0;
 }
