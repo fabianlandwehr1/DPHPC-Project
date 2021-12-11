@@ -221,28 +221,24 @@ void pressure_poisson_fpga(float p[], float dx, float dy, float b[])
     {
       #pragma HLS PIPELINE II=1
       p[i * NX + NX-1] = p_tmp[i*NX + NX-2];
-      #pragma HLS DEPENDENCE variable=p false
     } 
     // p[0, :] = p[1, :]  # dp/dy = 0 at y = 0
     for(int i=0;i<NX;i++)
     {
       #pragma HLS PIPELINE II=1
       p[0 * NX + i] = p_tmp[1*NX + i];
-      #pragma HLS DEPENDENCE variable=p false
     } 
     // p[:, 0] = p[:, 1]  # dp/dx = 0 at x = 0
     for(int i=0;i<NY;i++)
     {
       #pragma HLS PIPELINE II=1
       p[i * NX + 0] = p_tmp[i*NX + 1];
-      #pragma HLS DEPENDENCE variable=p false
     } 
     // p[-1, :] = 0  # p = 0 at y = 2
     for(int i=0;i<NX;i++)
     {
       #pragma HLS PIPELINE II=1
       p[(NY-1) * NX + i] = 0;
-      #pragma HLS DEPENDENCE variable=p false
     } 
   }
 }
@@ -321,12 +317,47 @@ void CavityFlowFunc(float u[], float v[], float p[]) {
     // pressure_poisson_fpga(nit, p, dx, dy, b)
     pressure_poisson_fpga(p, dx, dy, b);
 
+    float p_above[NX];
+    float p_centre_h[NX];
+    float p_start_col[NY];
+	  float p_end_col[NY];  
+
+    // Initialising p buffer arrays to reduce II
+    for(int j = 0;j<NX;j++)
+    {
+      #pragma HLS PIPELINE II=1
+      p_above[j] = p[ 0 * NX + j];
+    }
+    for(int j=0;j<NX;j++)
+    {
+      #pragma HLS PIPELINE II=1
+      p_centre_h[j] = p[1 * NX + j];
+    }
+    for(int i=0;i<NY;i++)
+    {
+      #pragma HLS PIPELINE II=1
+      p_start_col[i] = p[i*NX + 0];
+    }
+    for(int i=0;i<NY;i++)
+    {
+      #pragma HLS PIPELINE II=1
+      p_end_col[i] = p[i*NX + NX-1];
+    }
+
+
     for(int i=1;i<NY-1;i++)
     {
+      float p_below_var_for_next_iter = p_start_col[i+1];
+		  
       for(int j=1;j<NX-1;j++)
       {
         #pragma HLS LOOP_FLATTEN
         #pragma HLS PIPELINE II=1
+        float p_var = p_centre_h[j];
+        float p_left_var = p_centre_h[j-1];
+        float p_right_var = p_centre_h[(j+1)];
+        float p_below_var = p[(i+1) * NX + j];
+        float p_above_var = p_above[j];
         // u[1:-1,1:-1] = (un[1:-1, 1:-1] - un[1:-1, 1:-1] * dt / dx *
         // (un[1:-1, 1:-1] - un[1:-1, 0:-2]) -
         // vn[1:-1, 1:-1] * dt / dy *
@@ -340,7 +371,7 @@ void CavityFlowFunc(float u[], float v[], float p[]) {
             (un[i * NX + j] - un[i * NX + j-1]) -\
             vn[i * NX + j] * dt/dy *\
             (un[i * NX + j] - un[(i-1) * NX + j]) - dt/(2 * RHO * dx) *\
-            (p[i * NX + j+1] - p[i * NX + j-1]) + NU *\
+            (p_right_var - p_left_var) + NU *\
             (dt/(dx * dx) * \
             (un[i * NX + j+1] - 2* un[i * NX + j] + un[i * NX + j-1]) + \
             dt / (dy*dy) *\
@@ -361,14 +392,20 @@ void CavityFlowFunc(float u[], float v[], float p[]) {
                         (vn[i*NX + j] - vn[i*NX + j-1]) - 
                         vn[i*NX + j] * dt/dy * \
                         (vn[i*NX + j] - vn[(i-1)*NX + j]) - dt/(2*RHO*dy) *\
-                        (p[(i+1)*NX + j] - p[(i-1)*NX + j]) + NU*\
+                        (p_below_var - p_above_var) + NU*\
                         (dt / (dx * dx) * \
                         (vn[i*NX + j+1] - 2*vn[i*NX + j] + vn[i*NX + j-1]) + \
                         dt / (dy*dy) * \
                         (vn[(i+1)*NX + j] - 2*vn[i*NX + j] + vn[(i-1)*NX + j]))
                       );
+        
+        p_above[j] = p_var;
+        p_centre_h[j-1] = p_below_var_for_next_iter;
+        p_below_var_for_next_iter = p_below_var;
 
       }
+      p_centre_h[NX-2] = p_below_var_for_next_iter;
+		  p_centre_h[NX-1] = p_end_col[i+1];
     }
 
     // u[0, :] = 0
