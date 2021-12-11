@@ -19,24 +19,108 @@ using Vec_t = hlslib::DataPack<float, W>;
 
 void build_up_b_fpga(float b[], float rho, float dt, float u[], float v[], float dx, float dy)
 {
+  float u_above[NX];
+  float u_centre_h[NX];
+  
+	float u_start_col[NY];
+	float u_end_col[NY];
+
+  for(int j = 0;j<NX;j++)
+  {
+    #pragma HLS PIPELINE II=1
+    u_above[j] = u[ 0 * NX + j];
+  }
+
+  for(int j=0;j<NX;j++)
+  {
+    #pragma HLS PIPELINE II=1
+    u_centre_h[j] = u[1 * NX + j];
+  }
+
+	for(int i=0;i<NY;i++)
+	{
+		#pragma HLS PIPELINE II=1
+		u_start_col[i] = u[i*NX + 0];
+	}
+  
+	for(int i=0;i<NY;i++)
+	{
+		#pragma HLS PIPELINE II=1
+		u_end_col[i] = u[i*NX + NX-1];
+	}
+
+  float v_above[NX];
+  float v_centre_h[NX];
+  
+	float v_start_col[NY];
+	float v_end_col[NY];
+
+  for(int j = 0;j<NX;j++)
+  {
+    #pragma HLS PIPELINE II=1
+    v_above[j] = v[ 0 * NX + j];
+  }
+
+  for(int j=0;j<NX;j++)
+  {
+    #pragma HLS PIPELINE II=1
+    v_centre_h[j] = v[1 * NX + j];
+  }
+
+	for(int i=0;i<NY;i++)
+	{
+		#pragma HLS PIPELINE II=1
+		v_start_col[i] = v[i*NX + 0];
+	}
+  
+	for(int i=0;i<NY;i++)
+	{
+		#pragma HLS PIPELINE II=1
+		v_end_col[i] = v[i*NX + NX-1];
+	}
+	
+
   for(int i=1;i<NY-1;i++)
   {
-    for(int j=1;j<NX-1;j++)
-    {
-      #pragma HLS LOOP_FLATTEN
+		float u_below_var_for_next_iter = u_start_col[i+1];
+		float v_below_var_for_next_iter = v_start_col[i+1];
+
+		for(int j=1;j<NX-1;j++)
+    { // Can potentially be squzeezed into one single loop (may not provide any benefits)
       #pragma HLS PIPELINE II=1
       // Note the difference in indexing and denominators of the two\
         sets of variables...
 
+			float u_var = u_centre_h[j];
+			float u_left_var = u_centre_h[j-1];
+			float u_right_var = u_centre_h[(j+1)];
+			float u_below_var = u[(i+1) * NX + j];
+			float u_above_var = u_above[j];
+
+			float v_var = v_centre_h[j];
+			float v_left_var = v_centre_h[j-1];
+			float v_right_var = v_centre_h[(j+1)];
+			float v_below_var = v[(i+1) * NX + j];
+			float v_above_var = v_above[j];
+      // Don't use multiple memory accesses in same loop. (for each interface i.e)
+
       // (u[1:-1, 2:] - u[1:-1, 0:-2]) / (2 * dx)
-      float var_1 = (u[i * NX + (j+1)] - u[i * NX + (j-1)]) / (2 * dx);
+      float var_1 = (u_right_var - u_left_var) / (2 * dx); 
       // (v[2:, 1:-1] - v[0:-2, 1:-1]) / (2 * dy)
-      float var_2 = (v[(i+1) * NX + j] - v[(i-1) * NX + j]) / (2 * dy);
+      float var_2 = (v_below_var - v_above_var) / (2 * dy); // Parallelise/vectorize
       // (u[2:, 1:-1] - u[0:-2, 1:-1]) / (2 * dy)
-      float var_3 = (u[(i+1) * NX + j] - u[(i-1) * NX + j]) / (2 * dy);
+      float var_3 = (u_below_var - u_above_var) / (2 * dy); 
       // (v[1:-1, 2:] - v[1:-1, 0:-2]) / (2 * dx)
-      float var_4 = (v[i * NX + j+1] - v[i * NX + j-1]) / (2 * dx);
+      float var_4 = (v_right_var - v_left_var) / (2 * dx); // Parallelise/vectorize
       
+			u_above[j] = u_var;
+			u_centre_h[j-1] = u_below_var_for_next_iter;
+			u_below_var_for_next_iter = u_below_var;
+
+			v_above[j] = v_var;
+			v_centre_h[j-1] = v_below_var_for_next_iter;
+			v_below_var_for_next_iter = v_below_var;
+
       // (1 / dt * ((u[1:-1, 2:] - u[1:-1, 0:-2]) / (2 * dx) +
       // (v[2:, 1:-1] - v[0:-2, 1:-1]) / (2 * dy)) -
       // ((u[1:-1, 2:] - u[1:-1, 0:-2]) / (2 * dx))**2 - 2 *
@@ -48,6 +132,12 @@ void build_up_b_fpga(float b[], float rho, float dt, float u[], float v[], float
       // b[1:-1,1:-1] = rho * varB
       b[i * NX + j] = rho * varB;
     }
+
+		u_centre_h[NX-2] = u_below_var_for_next_iter;
+		u_centre_h[NX-1] = u_end_col[i+1];
+
+		v_centre_h[NX-2] = v_below_var_for_next_iter;
+		v_centre_h[NX-1] = v_end_col[i+1];
   }
 }
 
@@ -72,7 +162,13 @@ void pressure_poisson_fpga(float p[], float dx, float dy, float b[])
 {
   // pn = np.empty_like(p)
   float pn[NX * NY];
+  float p_tmp[NX * NY];
   
+	for(int i=0;i<NY*NX;i++)
+	{
+		#pragma HLS PIPELINE II=1
+		p_tmp[i] = p[i];
+	}
   // for q in range(nit):
   for (int q = 0;q < NIT;q++)
   { 
@@ -83,6 +179,7 @@ void pressure_poisson_fpga(float p[], float dx, float dy, float b[])
       pn[i] = p[i];
     }
 
+
     // iterate [1:-1, :]
     for(int i=1;i<NY-1;i++)
     {
@@ -90,7 +187,6 @@ void pressure_poisson_fpga(float p[], float dx, float dy, float b[])
       // iterate [1:-1, 1:-1]
       for(int j=1;j<NX-1;j++)
       {
-        #pragma HLS LOOP_FLATTEN
         #pragma HLS PIPELINE II=1
         // dx**2
         float dx_2 = dx * dx;
@@ -115,7 +211,8 @@ void pressure_poisson_fpga(float p[], float dx, float dy, float b[])
         // (pn[2:, 1:-1] + pn[0:-2, 1:-1]) * dx**2) /
         //(2 * (dx**2 + dy**2)) - dx**2 * dy**2 /
         //(2 * (dx**2 + dy**2)) * b[1:-1, 1:-1])
-        p[i * NX + j] = varC - varD;
+        p_tmp[i * NX + j] = varC - varD;
+				p[i*NX + j] = varC - varD;
       }
     }
 
@@ -123,25 +220,29 @@ void pressure_poisson_fpga(float p[], float dx, float dy, float b[])
     for(int i=0;i<NY;i++)
     {
       #pragma HLS PIPELINE II=1
-      p[i * NX + NX-1] = p[i*NX + NX-2];
+      p[i * NX + NX-1] = p_tmp[i*NX + NX-2];
+      #pragma HLS DEPENDENCE variable=p false
     } 
     // p[0, :] = p[1, :]  # dp/dy = 0 at y = 0
     for(int i=0;i<NX;i++)
     {
       #pragma HLS PIPELINE II=1
-      p[0 * NX + i] = p[1*NX + i];
+      p[0 * NX + i] = p_tmp[1*NX + i];
+      #pragma HLS DEPENDENCE variable=p false
     } 
     // p[:, 0] = p[:, 1]  # dp/dx = 0 at x = 0
     for(int i=0;i<NY;i++)
     {
       #pragma HLS PIPELINE II=1
-      p[i * NX + 0] = p[i*NX + 1];
+      p[i * NX + 0] = p_tmp[i*NX + 1];
+      #pragma HLS DEPENDENCE variable=p false
     } 
     // p[-1, :] = 0  # p = 0 at y = 2
     for(int i=0;i<NX;i++)
     {
       #pragma HLS PIPELINE II=1
       p[(NY-1) * NX + i] = 0;
+      #pragma HLS DEPENDENCE variable=p false
     } 
   }
 }
