@@ -68,6 +68,19 @@ void ProcessingElement(float const r[N], float y[N]) {
 
   }
 
+  if (N % 2 == 0) {
+
+    // Switch y arrays again
+    float *tmp = y;
+    y = y_tmp;
+    y_tmp = tmp;
+
+    // Copy y_tmp to y
+    for (int i = 0; i < N; i++) {
+      y[i] = y_tmp[i];
+    }
+  }
+
 }
 
 void Durbin(float const *r, float *y) {
