@@ -31,7 +31,7 @@ void gramschmidt_naive(float *A, float *Q, float *R) {
       }
     }
 
-    for(int j=i+1; j<N; j++){
+    for(int j=i; j<N; j++){
       #pragma HLS PIPELINE II = 1
       R[i*N+j] = squared_norms[j]*norm;
     }
