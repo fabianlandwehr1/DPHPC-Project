@@ -5,8 +5,29 @@
 using hlslib::Stream;
 
 void ProcessingElement(double const *data, double const *radius, double *res) {
-  
-  // TODO
+
+  double rmax = -std::numeric_limits<double>::infinity();
+  for (int i = 0; i < N; i++) {
+    #pragma HLS PIPELINE II=1
+    rmax = radius[i] > rmax ? radius[i] : rmax;
+  }
+
+  for (int i = 0; i < npt; i++) {
+
+    double r1 = rmax * i / npt;
+    double r2 = rmax * (i + 1) / npt;
+
+    double sum = 0;
+    int num = 0;
+    for (int j = 0; j < N; ++j) {
+      #pragma HLS PIPELINE II=3
+      if (r1 <= radius[j] && radius[j] < r2) {
+        sum += data[j];
+        num++;
+      }
+    }
+    res[i] = num > 0 ? sum / num : 0;
+  }
 
 }
 
