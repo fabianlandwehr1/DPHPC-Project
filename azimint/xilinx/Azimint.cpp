@@ -12,21 +12,28 @@ void ProcessingElement(double const *data, double const *radius, double *res) {
     rmax = radius[i] > rmax ? radius[i] : rmax;
   }
 
+  double r1[npt], r2[npt], sum[npt], num[npt];
   for (int i = 0; i < npt; i++) {
+    #pragma HLS PIPELINE II=1
+    r1[i] = rmax * i / npt;
+    r2[i] = rmax * (i + 1) / npt;
+    sum[i] = 0;
+    num[i] = 0;
+  }
 
-    double r1 = rmax * i / npt;
-    double r2 = rmax * (i + 1) / npt;
-
-    double sum = 0;
-    int num = 0;
-    for (int j = 0; j < N; ++j) {
-      #pragma HLS PIPELINE II=3
-      if (r1 <= radius[j] && radius[j] < r2) {
-        sum += data[j];
-        num++;
+  for (int j = 0; j < N; j++) {
+    for (int i = 0; i < npt; ++i) {
+      #pragma HLS PIPELINE II=1
+      if (r1[i] <= radius[j] && radius[j] < r2[i]) {
+        sum[i] += data[j];
+        num[i]++;
       }
     }
-    res[i] = num > 0 ? sum / num : 0;
+  }
+
+  for (int i = 0; i < npt; i++) {
+#pragma HLS PIPELINE II=1
+    res[i] = num[i] > 0 ? sum[i] / num[i] : 0;
   }
 
 }
