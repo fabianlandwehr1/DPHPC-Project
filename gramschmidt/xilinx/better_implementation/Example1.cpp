@@ -1,13 +1,19 @@
 #include <stdio.h>
 #include <math.h> 
 #include "hls_math.h"
-constexpr int N = 64;
-
+constexpr int N = 240;
+constexpr int M = 200;
+//A: M*N, Q: M*N, R: N*N
 void gramschmidt_naive(float *A, float *Q, float *R) {
   for(int i=0; i<N; i++){
-    float squared_norms[N]; 
-    for(int j=0; j<N; j++){
-      float val = A[j*N+i];
+    float squared_norms[N];
+    float buffer[M];
+    for(int j=0; j<M; j++){
+      #pragma HLS PIPELINE II = 1
+      buffer[j] = A[j*N+i];
+    } 
+    for(int j=0; j<M; j++){
+      float val = buffer[j];
       for(int k=i; k<N; k++){
         #pragma HLS PIPELINE II = 1
         float val2 = A[j*N+k];
@@ -16,16 +22,16 @@ void gramschmidt_naive(float *A, float *Q, float *R) {
       }// = <a_i, a_j>
     }
     float norm = hls::rsqrt(squared_norms[i]); //1/|a_i|
-    for(int k=0; k<N; k++){
+    for(int k=0; k<M; k++){
       #pragma HLS PIPELINE II = 1
-      Q[k*N+i] = A[k*N+i]*norm;
+      Q[k*N+i] = buffer[k]*norm;
     } 
     float squared_norm = squared_norms[i];
 
-    for(int k=0; k<N; k++){
-      float factor = A[k*N+i]/squared_norm;
+    for(int k=0; k<M; k++){
+      #pragma HLS PIPELINE II = 1
+      float factor = buffer[k]/squared_norm;
       for(int j=i+1; j<N; j++){
-        #pragma HLS PIPELINE II = 1
         A[k*N+j] -= squared_norms[j]*factor;
         #pragma HLS DEPENDENCE variable=A false
       }
@@ -38,4 +44,3 @@ void gramschmidt_naive(float *A, float *Q, float *R) {
 
   }
 }
-
