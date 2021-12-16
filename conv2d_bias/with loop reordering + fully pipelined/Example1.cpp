@@ -11,8 +11,8 @@ constexpr int N = 8;
 //output[i,:,:,j] = conv(input[i,:,:,:]*weights[:,:,:,j])+bias[j]
 //output[i,j,p,q] = sum(input[i,j:j+k,p:p+k,:]*weights[:,:,:,q])+bias[q]
 void conv2d(float const *input, float const *weights, float const *bias, float *output){
-  int H_out = N-K+1;
-  int W_out = N-K+1;
+  int H_out = H-K+1;
+  int W_out = W-K+1;
   int i_o1 = H_out*W_out*C_out;  //offsets for indexing. i: input; w: weights; o: output 
   int i_o2 = W_out*C_out;
   int i_o3 = C_out;
