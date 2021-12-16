@@ -22,19 +22,22 @@ void conv2d(float const *input, float const *weights, float const *bias, float *
   int o_o1 = H_out*W_out*C_out;
   int o_o2 = W_out*C_out;
   int o_o3 = C_out;
-  float weights_buffer[K*K*C_out];
+  float weights_buffer[K*K*C_in*C_out];
   float bias_buffer[C_out];
-  for(int i=0; i<K*K*C_out; i++){
+  for(int i=0; i<K*K*C_in*C_out; i++){
+    #pragma HLS PIPELINE II=1
     weights_buffer[i] = weights[i];
   }
 
   for(int i=0; i<C_out; i++){
+    #pragma HLS PIPELINE II=1
     bias_buffer[i] = bias[i];
   }
 
   for(int i=0; i<N; i++){
     for(int j=0; j<H_out; j++){
       for(int p=0; p<W_out; p++){
+        #pragma HLS PIPELINE II = 1
         float val[C_out];
         for(int k1=0; k1<K; k1++){
           for(int k2=0; k2<K; k2++){
@@ -54,6 +57,7 @@ void conv2d(float const *input, float const *weights, float const *bias, float *
           #pragma HLS DEPENDENCE variable=val false
         }
         for(int q=0; q<C_out; q++){
+          #pragma HLS PIPELINE II = 1
           output[i*o_o1+j*o_o2+p*o_o3+q] = val[q];
         }
       }
