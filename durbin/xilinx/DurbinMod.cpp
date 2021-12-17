@@ -131,25 +131,25 @@ void DurbinMod(float const *r, float *y_out) {
 
     #pragma HLS DATAFLOW
 
-    Stream<float> y[N];
-    Stream<float> r_mod[N];
-    Stream<float> y_unupdated[N-1];
-    Stream<float> beta[N];
-    Stream<float> alpha[N];
-    Stream<float> alpha_interim[N-1];
-    Stream<float> reverse_helper[N-1];
-    Stream<float> y_reverse_supported[N-1];
+    Stream<float, N> y[N];
+    Stream<float, N> r_mod[N];
+    Stream<float, N> y_unupdated[N-1];
+    Stream<float, N> beta[N];
+    Stream<float, N> alpha[N];
+    Stream<float, N> alpha_interim[N-1];
+    Stream<float, N> reverse_helper[N-1];
+    Stream<float, N> y_reverse_supported[N-1];
     
-    Stream<float> y0("y0");
-    Stream<float> y1("y1");
+    // Stream<float> y0("y0");
+    // Stream<float> y1("y1");
     // Stream<float> y_reverse_supported0("y_reverse_supported0");
     // Stream<float> y_unupdated0("y_unupdated0");
     // Stream<float> y2("y2");
     // Stream<float> y_reverse_supported1("y_reverse_supported1");
     // Stream<float> y_unupdated1("y_unupdated1");
-    Stream<float> beta0("beta0");
-    Stream<float> alpha0("alpha0");
-    Stream<float> reverse_helper0("reverse_helper");
+    // Stream<float> beta0("beta0");
+    // Stream<float> alpha0("alpha0");
+    // Stream<float> reverse_helper0("reverse_helper");
     
     // y[0].Push(-r[0]);
     // alpha[0].Push(-r[0]);
