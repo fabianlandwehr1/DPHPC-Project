@@ -1,10 +1,10 @@
 #pragma once
 
-constexpr int NX = 101;
-constexpr int NY = 101;
+constexpr int NX = 121;
+constexpr int NY = 121;
 
-constexpr int NT = 700;
-constexpr int NIT = 50;
+constexpr int NT = 50;
+constexpr int NIT = 10;
 
 constexpr float RHO = 1.0;
 constexpr float NU = 0.1;

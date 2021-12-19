@@ -249,65 +249,16 @@ void pressure_poisson_fpga(
 //         return u, v
 
 
-void CavityFlow(float *u, float *v, float* p) {
-
-  #pragma HLS INTERFACE m_axi port=u offset=slave bundle=gmem0
-  #pragma HLS INTERFACE m_axi port=v offset=slave bundle=gmem1
-  #pragma HLS INTERFACE m_axi port=p offset=slave bundle=gmem2
-  #pragma HLS INTERFACE s_axilite port=u bundle=control
-  #pragma HLS INTERFACE s_axilite port=v bundle=control
-  #pragma HLS INTERFACE s_axilite port=p bundle=control
-  #pragma HLS INTERFACE s_axilite port=return bundle=control
-
-  float u0[NY*NX];
-  float u1[NY*NX];
-  float u2[NY*NX];
-  float u3[NY*NX];
-  float u4[NY*NX];
-
-  CopyArray5Times(u, u0, u1, u2, u3, u4, NX * NY);
-
-  float v0[NY*NX];
-  float v1[NY*NX];
-  float v2[NY*NX];
-  float v3[NY*NX];
-  float v4[NY*NX];
-
-  CopyArray5Times(v, v0, v1, v2, v3, v4, NX * NY);
-
-  //un = np.empty_like(u)
-  float un0[NY * NX];
-  float un1[NY * NX];
-  float un2[NY * NX];
-  float un3[NY * NX];
-  float un4[NY * NX];
-  
-  //vn = np.empty_like(v)
-  float vn0[NY * NX];
-  float vn1[NY * NX];
-  float vn2[NY * NX];
-  float vn3[NY * NX];
-  float vn4[NY * NX];
-  
-  // np.zeros((ny, nx))
-  float b[NY*NX] = {0};
-
-  float p0[NX*NY];
-  float p1[NX*NY];
-  float p2[NX*NY];
-  float p3[NX*NY];
-  float p4[NX*NY];
-
-  CopyArray5Times(p, p0, p1, p2, p3, p4, NX * NY);
-
-  float dx = 2.0 / (NX - 1);
-  float dy = 2.0 / (NY - 1);
-  float dt = 0.1 / ((NX - 1) * (NY - 1));
-
-  // for n in range(nt)
-  for(int n = 0;n < NT;n++)
-  {
-    // un = u.copy()
+void ProcessingElement(
+  float u0[], float u1[], float u2[], float u3[], float u4[], 
+  float v0[], float v1[], float v2[], float v3[], float v4[], 
+  float un0[], float un1[], float un2[], float un3[], float un4[], 
+  float vn0[], float vn1[], float vn2[], float vn3[], float vn4[],
+  float p0[], float p1[], float p2[], float p3[], float p4[],
+  float b[], float dt, float dx, float dy
+)
+{
+  // un = u.copy()
     // vn = v.copy()
     CopyArray5Times(u0, un0, un1, un2, un3, un4, NX * NY);
     CopyArray5Times(v0, vn0, vn1, vn2, vn3, vn4, NX * NY);
@@ -399,14 +350,12 @@ void CavityFlow(float *u, float *v, float* p) {
                           (vn_below_var - 2*vn_var + vn_above_var))
                         );
         }
-        u[i*NX + j] = u_val;
         u0[i*NX + j] = u_val;
         u1[i*NX + j] = u_val;
         u2[i*NX + j] = u_val;
         u3[i*NX + j] = u_val;
         u4[i*NX + j] = u_val;
 
-        v[i*NX + j] = v_val;
         v0[i*NX + j] = v_val;
         v1[i*NX + j] = v_val;
         v2[i*NX + j] = v_val;
@@ -415,5 +364,79 @@ void CavityFlow(float *u, float *v, float* p) {
 
       }
     }
+}
+
+void CavityFlow(float *u, float *v, float* p) {
+
+  #pragma HLS INTERFACE m_axi port=u offset=slave bundle=gmem0
+  #pragma HLS INTERFACE m_axi port=v offset=slave bundle=gmem1
+  #pragma HLS INTERFACE m_axi port=p offset=slave bundle=gmem2
+  #pragma HLS INTERFACE s_axilite port=u bundle=control
+  #pragma HLS INTERFACE s_axilite port=v bundle=control
+  #pragma HLS INTERFACE s_axilite port=p bundle=control
+  #pragma HLS INTERFACE s_axilite port=return bundle=control
+
+  float u0[NY*NX];
+  float u1[NY*NX];
+  float u2[NY*NX];
+  float u3[NY*NX];
+  float u4[NY*NX];
+
+  CopyArray5Times(u, u0, u1, u2, u3, u4, NX * NY);
+
+  float v0[NY*NX];
+  float v1[NY*NX];
+  float v2[NY*NX];
+  float v3[NY*NX];
+  float v4[NY*NX];
+
+  CopyArray5Times(v, v0, v1, v2, v3, v4, NX * NY);
+
+  //un = np.empty_like(u)
+  float un0[NY * NX];
+  float un1[NY * NX];
+  float un2[NY * NX];
+  float un3[NY * NX];
+  float un4[NY * NX];
+  
+  //vn = np.empty_like(v)
+  float vn0[NY * NX];
+  float vn1[NY * NX];
+  float vn2[NY * NX];
+  float vn3[NY * NX];
+  float vn4[NY * NX];
+  
+  // np.zeros((ny, nx))
+  float b[NY*NX] = {0};
+
+  float p0[NX*NY];
+  float p1[NX*NY];
+  float p2[NX*NY];
+  float p3[NX*NY];
+  float p4[NX*NY];
+
+  CopyArray5Times(p, p0, p1, p2, p3, p4, NX * NY);
+
+  float dx = 2.0 / (NX - 1);
+  float dy = 2.0 / (NY - 1);
+  float dt = 0.1 / ((NX - 1) * (NY - 1));
+
+  // for n in range(nt)
+  for(int n = 0;n < NT;n++)
+  {
+    ProcessingElement(u0, u1, u2, u3, u4,
+                      v0, v1, v2, v3, v4,
+                      un0, un1, un2, un3, un4, 
+                      vn0, vn1, vn2, vn3, vn4,
+                      p0, p1, p2, p3, p4,
+                      b, dt, dx, dy);    
   }
+
+  for (int i=0;i<NX*NY;i++)
+  {
+    #pragma HLS PIPELINE II=1
+    u[i] = u0[i];
+    v[i] = v0[i];
+  }
+
 }
