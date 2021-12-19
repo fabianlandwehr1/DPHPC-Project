@@ -4,9 +4,9 @@
 
 using hlslib::Stream;
 
-void ProcessingElement(double const *data, double const *radius, double *res) {
+void ProcessingElement(float const *data, float const *radius, float *res) {
 
-  double rmax = -std::numeric_limits<double>::infinity();
+  float rmax = -std::numeric_limits<float>::infinity();
   for (int i = 0; i < N; i++) {
     #pragma HLS PIPELINE II=1
     rmax = radius[i] > rmax ? radius[i] : rmax;
@@ -14,10 +14,10 @@ void ProcessingElement(double const *data, double const *radius, double *res) {
 
   for (int i = 0; i < npt; i++) {
 
-    double r1 = rmax * i / npt;
-    double r2 = rmax * (i + 1) / npt;
+    float r1 = rmax * i / npt;
+    float r2 = rmax * (i + 1) / npt;
 
-    double sum = 0;
+    float sum = 0;
     int num = 0;
     for (int j = 0; j < N; ++j) {
       #pragma HLS PIPELINE II=3
@@ -31,7 +31,7 @@ void ProcessingElement(double const *data, double const *radius, double *res) {
 
 }
 
-void Azimint(double const *data, double const *radius, double *res) {
+void Azimint(float const *data, float const *radius, float *res) {
 
   #pragma HLS INTERFACE m_axi port=data offset=slave bundle=gmem0
   #pragma HLS INTERFACE m_axi port=radius offset=slave bundle=gmem1

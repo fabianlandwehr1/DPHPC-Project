@@ -16,10 +16,10 @@
 //        res[i] = values_r12.mean()
 //    return res
 
-void Reference(double const data[], double const radius[], double res[]) {
+void Reference(float const data[], float const radius[], float res[]) {
 
   //    rmax = radius.max()
-  double rmax = -std::numeric_limits<double>::infinity();
+  float rmax = -std::numeric_limits<float>::infinity();
   for (int i = 0; i < N; i++) {
     rmax = radius[i] > rmax ? radius[i] : rmax;
   }
@@ -29,13 +29,13 @@ void Reference(double const data[], double const radius[], double res[]) {
 
     //        r1 = rmax * i / npt
     //        r2 = rmax * (i + 1) / npt
-    double r1 = rmax * i / npt;
-    double r2 = rmax * (i + 1) / npt;
+    float r1 = rmax * i / npt;
+    float r2 = rmax * (i + 1) / npt;
 
     //        mask_r12 = np.logical_and((r1 <= radius), (radius < r2))
     //        values_r12 = data[mask_r12]
     //        res[i] = values_r12.mean()
-    double sum = 0;
+    float sum = 0;
     int num = 0;
     for (int j = 0; j < N; ++j) {
       if (r1 <= radius[j] && radius[j] < r2) {
@@ -48,10 +48,10 @@ void Reference(double const data[], double const radius[], double res[]) {
 }
 
 int main() {
-  std::vector<double> data(N);
-  std::vector<double> radius(N);
-  std::vector<double> res(N);
-  std::vector<double> res_ref(N);
+  std::vector<float> data(N);
+  std::vector<float> radius(N);
+  std::vector<float> res(N);
+  std::vector<float> res_ref(N);
 
   // Initialize inputs
   uint32_t seed = 1;
