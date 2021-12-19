@@ -10,7 +10,7 @@ constexpr int N = 8;
 //input of size N*H*W*C_in, weights of size K*K*C_in*C_out, bias of size C_out, output of size N*H_out*W_out*C_out
 //output[i,:,:,j] = conv(input[i,:,:,:]*weights[:,:,:,j])+bias[j]
 //output[i,j,p,q] = sum(input[i,j:j+k,p:p+k,:]*weights[:,:,:,q])+bias[q]
-void conv2d(float const *input, float const *weights, float const *bias, float *output){
+void ProcessingElement(float const *input, float const *weights, float const *bias, float *output){
   int H_out = H-K+1;
   int W_out = W-K+1;
   int i_o1 = H_out*W_out*C_out;  //offsets for indexing. i: input; w: weights; o: output 
@@ -42,3 +42,16 @@ void conv2d(float const *input, float const *weights, float const *bias, float *
   
 }
 
+void conv2d1(float const *input, float const *weights, float const *bias, float *output) {
+  #pragma HLS INTERFACE m_axi port=input bundle=gmem0 offset=slave
+  #pragma HLS INTERFACE m_axi port=weights bundle=gmem1 offset=slave
+  #pragma HLS INTERFACE m_axi port=bias bundle=gmem2 offset=slave
+  #pragma HLS INTERFACE m_axi port=ouput bundle=gmem3 offset=slave
+  #pragma HLS INTERFACE s_axilite port=input
+  #pragma HLS INTERFACE s_axilite port=weights
+  #pragma HLS INTERFACE s_axilite port=bias
+  #pragma HLS INTERFACE s_axilite port=ouput
+  #pragma HLS INTERFACE s_axilite port=return
+
+  ProcessingElement(input,weights,bias,output)
+}
