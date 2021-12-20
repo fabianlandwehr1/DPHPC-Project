@@ -1,17 +1,18 @@
 #include <stdio.h>
 #include <math.h> 
 #include "hls_math.h"
-constexpr int N = 64;
+constexpr int N = 60;
+constexpr int M = 70;
 
 void ProcessingElement(float *A, float *Q, float *R) {
   for(int i=0; i<N; i++){
     float squared_norms[N];
-    float buffer[N];
-    for(int j=0; j<N; j++){
+    float buffer[M];
+    for(int j=0; j<M; j++){
       #pragma HLS PIPELINE II = 1
       buffer[j] = A[j*N+i];
     } 
-    for(int j=0; j<N; j++){
+    for(int j=0; j<M; j++){
       float val = buffer[j];
       for(int k=i; k<N; k++){
         #pragma HLS PIPELINE II = 1
@@ -21,13 +22,13 @@ void ProcessingElement(float *A, float *Q, float *R) {
       }// = <a_i, a_j>
     }
     float norm = hls::rsqrt(squared_norms[i]); //1/|a_i|
-    for(int k=0; k<N; k++){
+    for(int k=0; k<M; k++){
       #pragma HLS PIPELINE II = 1
       Q[k*N+i] = buffer[k]*norm;
     } 
     float squared_norm = squared_norms[i];
 
-    for(int k=0; k<N; k++){
+    for(int k=0; k<M; k++){
       float factor = buffer[k]/squared_norm;
       for(int j=i+1; j<N; j++){
         #pragma HLS PIPELINE II = 1
