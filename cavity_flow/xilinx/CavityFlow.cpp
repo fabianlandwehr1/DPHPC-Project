@@ -21,6 +21,30 @@ void CopyArray5Times(float * inp, float* out0, float* out1, float* out2, float* 
   }
 }
 
+void CopyStream5Times(Stream<float>& inp, Stream<float>& out0, Stream<float>& out1, Stream<float>& out2, Stream<float>& out3, Stream<float>& out4, int size)
+{
+  for(int i=0;i<size;i++)
+  {
+    #pragma HLS PIPELINE II=1
+    float val = inp.Pop();
+    out0.Push(val);
+    out1.Push(val);
+    out2.Push(val);
+    out3.Push(val);
+    out4.Push(val);
+  }
+}
+
+void SplitStream(Stream<float>& inp, Stream<float>& out1, Stream<float>& out2, int size)
+{
+  for(int i=0;i<size;i++)
+  {
+    #pragma HLS PIPELINE II=1
+    float val = inp.Pop();
+    out1.Push(val);
+    out2.Push(val);
+  }
+}
 // def build_up_b_fpga(b, rho, dt, u, v, dx, dy):
 
 //     b[1:-1,
@@ -250,16 +274,46 @@ void pressure_poisson_fpga(
 
 
 void ProcessingElement(
-  float u0[], float u1[], float u2[], float u3[], float u4[], 
-  float v0[], float v1[], float v2[], float v3[], float v4[], 
-  float un0[], float un1[], float un2[], float un3[], float un4[], 
-  float vn0[], float vn1[], float vn2[], float vn3[], float vn4[],
+  Stream<float>& u0_inp, Stream<float>& u1_inp, Stream<float>& u2_inp, Stream<float>& u3_inp, Stream<float>& u4_inp, 
+  Stream<float>& u0_out, Stream<float>& u1_out, Stream<float>& u2_out, Stream<float>& u3_out, Stream<float>& u4_out, 
+  Stream<float>& v0_inp, Stream<float>& v1_inp, Stream<float>& v2_inp, Stream<float>& v3_inp, Stream<float>& v4_inp, 
+  Stream<float>& v0_out, Stream<float>& v1_out, Stream<float>& v2_out, Stream<float>& v3_out, Stream<float>& v4_out, 
   float p0[], float p1[], float p2[], float p3[], float p4[],
   float b[], float dt, float dx, float dy
 )
-{
-  // un = u.copy()
-    // vn = v.copy()
+{   
+
+    //un = np.empty_like(u)
+    float un0[NY * NX];
+    float un1[NY * NX];
+    float un2[NY * NX];
+    float un3[NY * NX];
+    float un4[NY * NX];
+    
+    //vn = np.empty_like(v)
+    float vn0[NY * NX];
+    float vn1[NY * NX];
+    float vn2[NY * NX];
+    float vn3[NY * NX];
+    float vn4[NY * NX];
+
+    float u0[NY*NX];
+    float u1[NY*NX];
+    float u2[NY*NX];
+    float u3[NY*NX];
+    float u4[NY*NX];
+
+    CopyArray5Times(u, u0, u1, u2, u3, u4, NX * NY);
+
+    float v0[NY*NX];
+    float v1[NY*NX];
+    float v2[NY*NX];
+    float v3[NY*NX];
+    float v4[NY*NX];
+
+  CopyArray5Times(v, v0, v1, v2, v3, v4, NX * NY);
+
+    
     CopyArray5Times(u0, un0, un1, un2, un3, un4, NX * NY);
     CopyArray5Times(v0, vn0, vn1, vn2, vn3, vn4, NX * NY);
 
@@ -392,19 +446,6 @@ void CavityFlow(float *u, float *v, float* p) {
 
   CopyArray5Times(v, v0, v1, v2, v3, v4, NX * NY);
 
-  //un = np.empty_like(u)
-  float un0[NY * NX];
-  float un1[NY * NX];
-  float un2[NY * NX];
-  float un3[NY * NX];
-  float un4[NY * NX];
-  
-  //vn = np.empty_like(v)
-  float vn0[NY * NX];
-  float vn1[NY * NX];
-  float vn2[NY * NX];
-  float vn3[NY * NX];
-  float vn4[NY * NX];
   
   // np.zeros((ny, nx))
   float b[NY*NX] = {0};
@@ -426,8 +467,6 @@ void CavityFlow(float *u, float *v, float* p) {
   {
     ProcessingElement(u0, u1, u2, u3, u4,
                       v0, v1, v2, v3, v4,
-                      un0, un1, un2, un3, un4, 
-                      vn0, vn1, vn2, vn3, vn4,
                       p0, p1, p2, p3, p4,
                       b, dt, dx, dy);    
   }
