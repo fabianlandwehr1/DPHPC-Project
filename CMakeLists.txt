@@ -165,7 +165,7 @@ function(intel_testbench CPP_FILES KERNEL_NAME)
   endif()
 endfunction()
 
-
+add_subdirectory(azimint)
 add_subdirectory(cholesky)
 add_subdirectory(durbin)
 add_subdirectory(gramschmidt)
