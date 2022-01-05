@@ -1,8 +1,10 @@
 #include "Azimint.h"
 #include "hlslib/xilinx/Simulation.h"
 #include "hlslib/xilinx/Stream.h"
+#include "hlslib/xilinx/DataPack.h"
 
 using hlslib::Stream;
+using hlslib::DataPack;
 
 void ReadMemory(float const *in, Stream<float> stream[D]) {
   for (int j = 0; j < N; j++) {
@@ -25,7 +27,8 @@ void WriteMemory(Stream<float> stream[D], float *out) {
 void sum(Stream<float> &radius, Stream<float> &data, float rmax, int start, Stream<float> &res) {
 
   // Calculate radius bounds
-  float r1[d], r2[d], sum[d], num[d];
+  float r1[d], r2[d], sum[d];
+  int num[d];
   for (int i = 0; i < d; i++) {
     #pragma HLS UNROLL
     r1[i] = rmax * (start + i) / npt;
@@ -36,13 +39,15 @@ void sum(Stream<float> &radius, Stream<float> &data, float rmax, int start, Stre
 
   for (int j = 0; j < N; j++) {
 
+    #pragma HLS PIPELINE II=5
+
     // Receive next input
     float rad = radius.Pop();
     float dat = data.Pop();
 
     // Process input (Depth = 10)
     for (int i = 0; i < d; i++) {
-      #pragma HLS PIPELINE II=1
+      #pragma HLS UNROLL
       if (r1[i] <= rad && rad < r2[i]) {
         sum[i] += dat;
         num[i]++;
@@ -81,15 +86,33 @@ void sumAll(float const *radius, float const *data, float rmax, float *res) {
   HLSLIB_DATAFLOW_FINALIZE();
 }
 
-void ProcessingElement(float const *data, float const *radius, float *res) {
+float max(float const *radius) {
 
-  float rmax = -std::numeric_limits<float>::infinity();
-  for (int i = 0; i < N; i++) {
-    #pragma HLS PIPELINE II=1
-    rmax = radius[i] > rmax ? radius[i] : rmax;
+  constexpr int w = 32;
+  float rmax[w];
+
+  auto radius_v = reinterpret_cast<const DataPack<float, w> *>(radius);
+
+  for (int k = 0; k < w; k++) {
+    #pragma HLS UNROLL
+    rmax[k] = -std::numeric_limits<float>::infinity();
   }
 
-  sumAll(radius, data, rmax, res);
+  for (int i = 0; i < N / w; i++) {
+    #pragma HLS PIPELINE II=1
+    auto rad = radius_v[i];
+    for (int k = 0; k < w; k++) {
+      #pragma HLS UNROLL
+      rmax[k] = rad[k] > rmax[k] ? rad[k] : rmax[k];
+    }
+  }
+
+  for (int k = 1; k < w; k++) {
+    #pragma HLS UNROLL
+    rmax[0] = rmax[0] > rmax[k] ? rmax[0] : rmax[k];
+  }
+
+  return rmax[0];
 
 }
 
@@ -103,6 +126,7 @@ void Azimint(float const *data, float const *radius, float *res) {
   #pragma HLS INTERFACE s_axilite port=res bundle=control
   #pragma HLS INTERFACE s_axilite port=return bundle=control
 
-  ProcessingElement(data, radius, res);
+  sumAll(radius, data, max(radius), res);
+
 
 }
