@@ -6,10 +6,10 @@
 using hlslib::Stream;
 using hlslib::DataPack;
 
-void ReadMemory(float const *in, Stream<float> stream[D]) {
-  for (int j = 0; j < N; j++) {
+void ReadMemory(DataPack<float, W> const *in, Stream<DataPack<float, W>> stream[D]) {
+  for (int j = 0; j < N / W; j++) {
     #pragma HLS PIPELINE
-    float v = in[j];
+    auto v = in[j];
     for (int k = 0; k < D; k++) {
       #pragma HLS UNROLL
       stream[k].Push(v);
@@ -24,7 +24,7 @@ void WriteMemory(Stream<float> stream[D], float *out) {
   }
 }
 
-void sum(Stream<float> &radius, Stream<float> &data, float rmax, int start, Stream<float> &res) {
+void sum(Stream<DataPack<float, W>> &radius, Stream<DataPack<float, W>> &data, float rmax, int start, Stream<float> &res) {
 
   // Calculate radius bounds
   float r1[d], r2[d], sum[d];
@@ -37,21 +37,51 @@ void sum(Stream<float> &radius, Stream<float> &data, float rmax, int start, Stre
     num[i] = 0;
   }
 
-  for (int j = 0; j < N; j++) {
+  for (int j = 0; j < N / W; j++) {
 
-    #pragma HLS PIPELINE II=5
+    #pragma HLS PIPELINE
 
     // Receive next input
-    float rad = radius.Pop();
-    float dat = data.Pop();
+    auto rad = radius.Pop();
+    auto dat = data.Pop();
 
     // Process input (Depth = 10)
     for (int i = 0; i < d; i++) {
       #pragma HLS UNROLL
-      if (r1[i] <= rad && rad < r2[i]) {
-        sum[i] += dat;
-        num[i]++;
-      }
+
+      // ==================
+      // = AUTO GENERATED =
+      // ==================
+
+      bool cond1 = r1[i] <= rad[0] && rad[0] < r2[i];
+      float s1 = cond1 ? dat[0] : 0;
+      float n1 = cond1 ? 1 : 0;
+
+      bool cond2 = r1[i] <= rad[1] && rad[1] < r2[i];
+      float s2 = cond2 ? dat[1] : 0;
+      float n2 = cond2 ? 1 : 0;
+
+      bool cond3 = r1[i] <= rad[2] && rad[2] < r2[i];
+      float s3 = cond3 ? dat[2] : 0;
+      float n3 = cond3 ? 1 : 0;
+
+      bool cond4 = r1[i] <= rad[3] && rad[3] < r2[i];
+      float s4 = cond4 ? dat[3] : 0;
+      float n4 = cond4 ? 1 : 0;
+
+      float s5 = s1 + s2;
+      float s6 = s3 + s4;
+      float s7 = s5 + s6;
+
+      float n5 = n1 + n2;
+      float n6 = n3 + n4;
+      float n7 = n5 + n6;
+
+      sum[i] += s7;
+      num[i] += n7;
+
+      // ==================
+
     }
 
   }
@@ -69,12 +99,12 @@ void sumAll(float const *radius, float const *data, float rmax, float *res) {
 
   HLSLIB_DATAFLOW_INIT();
 
-  Stream<float> stream_radius[D];
-  Stream<float> stream_data[D];
+  Stream<DataPack<float, W>> stream_radius[D];
+  Stream<DataPack<float, W>> stream_data[D];
   Stream<float> stream_res[D];
 
-  HLSLIB_DATAFLOW_FUNCTION(ReadMemory, radius, stream_radius);
-  HLSLIB_DATAFLOW_FUNCTION(ReadMemory, data, stream_data);
+  HLSLIB_DATAFLOW_FUNCTION(ReadMemory, reinterpret_cast<const DataPack<float, W> *>(radius), stream_radius);
+  HLSLIB_DATAFLOW_FUNCTION(ReadMemory, reinterpret_cast<const DataPack<float, W> *>(data), stream_data);
 
   for (int k = 0; k < D; k++) {
     #pragma HLS UNROLL
