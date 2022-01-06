@@ -54,20 +54,20 @@ void sum(Stream<DataPack<float, W>> &radius, Stream<DataPack<float, W>> &data, f
       // ==================
 
       bool cond1 = r1[i] <= rad[0] && rad[0] < r2[i];
-      float s1 = cond1 ? dat[0] : 0;
-      float n1 = cond1 ? 1 : 0;
+      float s1 = cond1 ? dat[0] : 0.0f;
+      int n1 = cond1 ? 1 : 0;
 
       bool cond2 = r1[i] <= rad[1] && rad[1] < r2[i];
-      float s2 = cond2 ? dat[1] : 0;
-      float n2 = cond2 ? 1 : 0;
+      float s2 = cond2 ? dat[1] : 0.0f;
+      int n2 = cond2 ? 1 : 0;
 
       bool cond3 = r1[i] <= rad[2] && rad[2] < r2[i];
-      float s3 = cond3 ? dat[2] : 0;
-      float n3 = cond3 ? 1 : 0;
+      float s3 = cond3 ? dat[2] : 0.0f;
+      int n3 = cond3 ? 1 : 0;
 
       bool cond4 = r1[i] <= rad[3] && rad[3] < r2[i];
-      float s4 = cond4 ? dat[3] : 0;
-      float n4 = cond4 ? 1 : 0;
+      float s4 = cond4 ? dat[3] : 0.0f;
+      int n4 = cond4 ? 1 : 0;
 
       float s5 = s1 + s2;
       float s6 = s3 + s4;
