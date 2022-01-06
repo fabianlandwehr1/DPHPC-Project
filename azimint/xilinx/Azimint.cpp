@@ -30,7 +30,7 @@ void sum(Stream<DataPack<float, W>> &radius, Stream<DataPack<float, W>> &data, f
   float r1[d], r2[d], sum[d];
   int num[d];
   for (int i = 0; i < d; i++) {
-    #pragma HLS UNROLL
+    #pragma HLS PIPELINE II=1
     r1[i] = rmax * (start + i) / npt;
     r2[i] = rmax * (start + i + 1) / npt;
     sum[i] = 0;
