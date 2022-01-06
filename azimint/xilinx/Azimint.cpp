@@ -8,7 +8,7 @@ using hlslib::DataPack;
 
 void ReadMemory(DataPack<float, W> const *in, Stream<DataPack<float, W>> stream[D]) {
   for (int j = 0; j < N / W; j++) {
-    #pragma HLS PIPELINE
+    #pragma HLS PIPELINE II = 1
     auto v = in[j];
     for (int k = 0; k < D; k++) {
       #pragma HLS UNROLL
@@ -39,7 +39,7 @@ void sum(Stream<DataPack<float, W>> &radius, Stream<DataPack<float, W>> &data, f
 
   for (int j = 0; j < N / W; j++) {
 
-    #pragma HLS PIPELINE
+    #pragma HLS PIPELINE II=9
 
     // Receive next input
     auto rad = radius.Pop();
