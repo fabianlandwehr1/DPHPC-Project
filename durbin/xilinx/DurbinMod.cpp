@@ -13,7 +13,7 @@ void ReadMemory(float const *in, Stream<float> &stream, int k) {
 }
 
 // Update each element of y
-void UpdateY(Stream<float> &in, Stream<float> &out, Stream<float> &alpha_in, Stream<float> &reverse_helper, int k) {
+void UpdateY(Stream<float> &in, Stream<float> &out, Stream<float> &alpha_in, Stream<float> &alpha_out, Stream<float> &reverse_helper, int k) {
   float alpha = alpha_in.Pop();
   for (int i = 0; i < k; i++) {
     #pragma HLS PIPELINE II=1
@@ -21,13 +21,16 @@ void UpdateY(Stream<float> &in, Stream<float> &out, Stream<float> &alpha_in, Str
   }
   // Pushing the last element y[k] to the next stream
   out.Push(in.Pop());
+  alpha_out.Push(alpha);
 }
 
-void ReversePopulate(Stream<float> &in, Stream<float>& out, Stream<float> & reverse, int k_, int k)
+void ReversePopulate(Stream<float> &in, Stream<float>& out, Stream<float> & reverse, Stream<float> &beta_in, Stream<float> &beta_out, int k_, int k)
 { 
   if(k == 0)
     return;
+  float beta = beta_in.Pop();
   float y[N];
+
   for(int i=0;i<k_;i++)
   {
     y[i] = in.Pop();
@@ -38,6 +41,7 @@ void ReversePopulate(Stream<float> &in, Stream<float>& out, Stream<float> & reve
     reverse.Push(y[k_-1-i]);
   }
   out.Push(in.Pop());
+  beta_out.Push(beta);
   // float f = in.Pop();
   // out.Push(f);
   // ReversePopulate(in, out, reverse, N, k-1);
@@ -50,7 +54,8 @@ void ReversePopulate(Stream<float> &in, Stream<float>& out, Stream<float> & reve
 }
 
 // Writes from the tail of the pipeline
-void WriteMemory(Stream<float> &stream, float *out, int k) {
+void WriteMemory(Stream<float> &alpha, Stream<float> &stream, float *out, int k) {
+  alpha.Pop();
   for (int i = 0; i < k; i++) {
     #pragma HLS PIPELINE II=1
     out[i] = stream.Pop();
@@ -58,7 +63,7 @@ void WriteMemory(Stream<float> &stream, float *out, int k) {
 }
 
 
-void ProcessingElement(Stream<float>& r, Stream<float>& y_in, Stream<float>& y_out, Stream<float>& beta_in, Stream<float>& beta_out, Stream<float>& alpha_in, Stream<float>& alpha_out, Stream<float>& alpha_out_real, int N, int k) {
+void ProcessingElement(Stream<float>& r, Stream<float>& y_in, Stream<float>& y_out, Stream<float>& beta_in, Stream<float>& beta_out, Stream<float>& alpha_in, Stream<float>& alpha_out, int N, int k) {
 
     float alpha = alpha_in.Pop();
     float beta = beta_in.Pop();
@@ -82,7 +87,6 @@ void ProcessingElement(Stream<float>& r, Stream<float>& y_in, Stream<float>& y_o
     y_out.Push(alpha);
 
     beta_out.Push(beta);
-    alpha_out_real.Push(alpha);    
     alpha_out.Push(alpha);    
 }
 
@@ -108,16 +112,16 @@ void InitYAlphaBeta(Stream<float> &y, Stream<float> &alpha, Stream<float> &beta,
 //   // std::cout<<print;
 // }
 
-void InitR(Stream<float> r_mod[N], const float r[N])
+void InitR(Stream<float> r_mod[2], const float r[N])
 {
   r_mod[0].Push(r[0]);
     for(int i=1;i<N;i++)
     {
       for(int j=0;j<i;j++)
       {
-        r_mod[i].Push(r[i-1-j]);
+        r_mod[i%2].Push(r[i-1-j]);
       }
-      r_mod[i].Push(r[i]);
+      r_mod[i%2].Push(r[i]);
     } 
 }
 
@@ -131,14 +135,15 @@ void DurbinMod(float const *r, float *y_out) {
 
     #pragma HLS DATAFLOW
 
-    Stream<float, N> y[N];
-    Stream<float, N> r_mod[N];
-    Stream<float, N> y_unupdated[N-1];
-    Stream<float, N> beta[N];
-    Stream<float, N> alpha[N];
-    Stream<float, N> alpha_interim[N-1];
-    Stream<float, N> reverse_helper[N-1];
-    Stream<float, N> y_reverse_supported[N-1];
+    Stream<float, N> y[2];
+    Stream<float, N> r_mod[2];
+    Stream<float, N> y_unupdated("y_updated");
+    Stream<float, 1> beta[N];
+    Stream<float, 1> alpha[N];
+    Stream<float, 1> alpha_interim[N-1];
+    Stream<float, 1> beta_interim[N-1];
+    Stream<float, N> reverse_helper("reverse_helper");
+    Stream<float, N> y_reverse_supported("y_reverse_supported");
     
     // Stream<float> y0("y0");
     // Stream<float> y1("y1");
@@ -169,12 +174,12 @@ void DurbinMod(float const *r, float *y_out) {
       // #pragma HLS DEPENDENCE variable=r false
       // #pragma HLS UNROLL
         // std::cout<<"Unrolling k "<< k<<std::endl;
-      HLSLIB_DATAFLOW_FUNCTION(ProcessingElement, r_mod[k], y[k-1], y_unupdated[k-1], beta[k-1], beta[k], alpha[k-1], alpha_interim[k-1], alpha[k], N, k);
-      HLSLIB_DATAFLOW_FUNCTION(ReversePopulate, y_unupdated[k-1], y_reverse_supported[k-1], reverse_helper[k-1], k, k);
-      HLSLIB_DATAFLOW_FUNCTION(UpdateY, y_reverse_supported[k-1], y[k], alpha_interim[k-1], reverse_helper[k-1], k);
+      HLSLIB_DATAFLOW_FUNCTION(ProcessingElement, r_mod[k%2], y[(k-1)%2], y_unupdated, beta[k-1], beta_interim[k-1], alpha[k-1], alpha_interim[k-1], N, k);
+      HLSLIB_DATAFLOW_FUNCTION(ReversePopulate, y_unupdated, y_reverse_supported, reverse_helper, beta_interim[k-1], beta[k], k, k);
+      HLSLIB_DATAFLOW_FUNCTION(UpdateY, y_reverse_supported, y[k%2], alpha_interim[k-1], alpha[k], reverse_helper, k);
     }
+    HLSLIB_DATAFLOW_FUNCTION(WriteMemory,alpha[N-1], y[(N-1)%2], y_out, N);
       
-    HLSLIB_DATAFLOW_FUNCTION(WriteMemory, y[N-1], y_out, N);
-
     HLSLIB_DATAFLOW_FINALIZE();
+
 }
