@@ -162,13 +162,13 @@ void pressure_poisson_fpga(float p[], float dx, float dy, float b[])
 {
   // pn = np.empty_like(p)
   float pn[NX * NY];
-  float p_tmp[NX * NY];
+  // float p_tmp[NX * NY];
   
-	for(int i=0;i<NY*NX;i++)
-	{
-		#pragma HLS PIPELINE II=1
-		p_tmp[i] = p[i];
-	}
+	// for(int i=0;i<NY*NX;i++)
+	// {
+	// 	#pragma HLS PIPELINE II=1
+	// 	p_tmp[i] = p[i];
+	// }
   // for q in range(nit):
   for (int q = 0;q < NIT;q++)
   { 
@@ -211,34 +211,26 @@ void pressure_poisson_fpga(float p[], float dx, float dy, float b[])
         // (pn[2:, 1:-1] + pn[0:-2, 1:-1]) * dx**2) /
         //(2 * (dx**2 + dy**2)) - dx**2 * dy**2 /
         //(2 * (dx**2 + dy**2)) * b[1:-1, 1:-1])
-        p_tmp[i * NX + j] = varC - varD;
-				p[i*NX + j] = varC - varD;
+        // p_tmp[i * NX + j] = varC - varD;
+        p[i*NX + j] = varC - varD;
+        if(j == NX-2)
+        {
+          p[i*NX + NX-1] = p[i*NX + NX-2];
+        }
+        if(j == 1)
+        {
+          p[i*NX + 0] = p[i*NX + 1]; 
+        }
+        if (i== NY-2)
+        {
+          p[(NY-1) * NX + j] = 0;
+        }
+        if (i== 1)
+        {
+          p[(0) * NX + j] = p[1*NX + j];
+        }
       }
-    }
 
-    // p[:, -1] = p[:, -2]  # dp/dx = 0 at x = 2
-    for(int i=0;i<NY;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      p[i * NX + NX-1] = p_tmp[i*NX + NX-2];
-    } 
-    // p[0, :] = p[1, :]  # dp/dy = 0 at y = 0
-    for(int i=0;i<NX;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      p[0 * NX + i] = p_tmp[1*NX + i];
-    } 
-    // p[:, 0] = p[:, 1]  # dp/dx = 0 at x = 0
-    for(int i=0;i<NY;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      p[i * NX + 0] = p_tmp[i*NX + 1];
-    } 
-    // p[-1, :] = 0  # p = 0 at y = 2
-    for(int i=0;i<NX;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      p[(NY-1) * NX + i] = 0;
     } 
   }
 }
@@ -288,13 +280,15 @@ void pressure_poisson_fpga(float p[], float dx, float dy, float b[])
 //         return u, v
 
 
-void CavityFlowFunc(float u[], float v[], float p[]) {
+void CavityFlowFunc(float u[], float v[]) {
   //un = np.empty_like(u)
   float un[NY * NX];
   //vn = np.empty_like(v)
   float vn[NY * NX];
   // np.zeros((ny, nx))
   float b[NY*NX] = {0};
+
+  float p[NY*NX] = {0};
 
   float dx = 2.0 / (NX - 1);
   float dy = 2.0 / (NY - 1);
@@ -358,6 +352,22 @@ void CavityFlowFunc(float u[], float v[], float p[]) {
         float p_right_var = p_centre_h[(j+1)];
         float p_below_var = p[(i+1) * NX + j];
         float p_above_var = p_above[j];
+
+        float un_above, un_below, un_centre, un_left, un_right;
+        float vn_above, vn_below, vn_centre, vn_left, vn_right;
+        un_centre = un[(i)*NX + (j)];
+        un_left = j == 1? 0.0 :un[(i)*NX + (j-1)];
+        un_right = j == (NX-2) ? 0.0 :un[(i)*NX + (j+1)];
+        un_above = i == 1? 0.0 :un[(i-1)*NX + (j)];
+        un_below = i == (NY-2)? (n == 0? 0:1) :un[(i+1)*NX + (j)];
+
+        vn_centre = vn[(i)*NX + (j)];
+        vn_left = j == 1? 0.0 :vn[(i)*NX + (j-1)];
+        vn_right = j == (NX-2)? 0.0 :vn[(i)*NX + (j+1)];
+        vn_above = i == 1? 0.0 :vn[(i-1)*NX + (j)];
+        vn_below = i == (NY-2)? 0.0 :vn[(i+1)*NX + (j)];
+
+
         // u[1:-1,1:-1] = (un[1:-1, 1:-1] - un[1:-1, 1:-1] * dt / dx *
         // (un[1:-1, 1:-1] - un[1:-1, 0:-2]) -
         // vn[1:-1, 1:-1] * dt / dy *
@@ -367,15 +377,15 @@ void CavityFlowFunc(float u[], float v[], float p[]) {
         // (un[1:-1, 2:] - 2 * un[1:-1, 1:-1] + un[1:-1, 0:-2]) +
         // dt / dy**2 *
         // (un[2:, 1:-1] - 2 * un[1:-1, 1:-1] + un[0:-2, 1:-1])))
-        u[i*NX + j] = (un[i * NX + j] - un[i * NX + j] * dt/dx *\
-            (un[i * NX + j] - un[i * NX + j-1]) -\
-            vn[i * NX + j] * dt/dy *\
-            (un[i * NX + j] - un[(i-1) * NX + j]) - dt/(2 * RHO * dx) *\
+        u[i*NX + j] = (un_centre - un_centre * dt/dx *\
+            (un_centre - un_left) -\
+            vn_centre * dt/dy *\
+            (un_centre - un_above) - dt/(2 * RHO * dx) *\
             (p_right_var - p_left_var) + NU *\
             (dt/(dx * dx) * \
-            (un[i * NX + j+1] - 2* un[i * NX + j] + un[i * NX + j-1]) + \
+            (un_right - 2* un_centre + un_left) + \
             dt / (dy*dy) *\
-            (un[(i + 1)* NX + j] -2 * un[i * NX + j] + un[(i-1) * NX + j])));
+            (un_below -2 * un_centre + un_above)));
         
         
         
@@ -388,15 +398,15 @@ void CavityFlowFunc(float u[], float v[], float p[]) {
         // (vn[1:-1, 2:] - 2 * vn[1:-1, 1:-1] + vn[1:-1, 0:-2]) +
         // dt / dy**2 *
         // (vn[2:, 1:-1] - 2 * vn[1:-1, 1:-1] + vn[0:-2, 1:-1])))
-        v[i*NX + j] = (vn[i*NX + j] - un[i*NX + j]*dt/dx *\
-                        (vn[i*NX + j] - vn[i*NX + j-1]) - 
-                        vn[i*NX + j] * dt/dy * \
-                        (vn[i*NX + j] - vn[(i-1)*NX + j]) - dt/(2*RHO*dy) *\
+        v[i*NX + j] = (vn_centre - un_centre*dt/dx *\
+                        (vn_centre - vn_left) - 
+                        vn_centre * dt/dy * \
+                        (vn_centre - vn_above) - dt/(2*RHO*dy) *\
                         (p_below_var - p_above_var) + NU*\
                         (dt / (dx * dx) * \
-                        (vn[i*NX + j+1] - 2*vn[i*NX + j] + vn[i*NX + j-1]) + \
+                        (vn_right - 2*vn_centre + vn_left) + \
                         dt / (dy*dy) * \
-                        (vn[(i+1)*NX + j] - 2*vn[i*NX + j] + vn[(i-1)*NX + j]))
+                        (vn_below - 2*vn_centre + vn_above))
                       );
         
         p_above[j] = p_var;
@@ -407,60 +417,58 @@ void CavityFlowFunc(float u[], float v[], float p[]) {
       p_centre_h[NX-2] = p_below_var_for_next_iter;
 		  p_centre_h[NX-1] = p_end_col[i+1];
     }
-
-    // u[0, :] = 0
-    for(int i=0;i<NX;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      u[0 * NX + i] = 0;
-    }
-    // u[:, 0] = 0
-    for(int i=0;i<NY;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      u[i * NX + 0] = 0;
-    }
-    // u[:, -1] = 0
-    for(int i=0;i<NY;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      u[i * NX + NX-1] = 0;
-    }
-    // u[-1, :] = 1
-    for(int i=0;i<NX;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      u[(NY-1) * NX + i] = 1;
-    }
-
-    // v[0, :] = 0
-    for(int i=0;i<NX;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      v[0 * NX + i] = 0;
-    }
-    // v[-1, :] = 0
-    for(int i=0;i<NX;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      v[(NY-1) * NX + i] = 0;
-    }
-    // v[:, 0] = 0
-    for(int i=0;i<NY;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      v[i * NX + 0] = 0;
-    }
-    // v[:, -1] = 0
-    for(int i=0;i<NY;i++)
-    {
-      #pragma HLS PIPELINE II=1
-      v[i * NX + NX-1] = 0;
-    }
-
   }
-  
 
+  // u[0, :] = 0
+  for(int i=0;i<NX;i++)
+  {
+    #pragma HLS PIPELINE II=1
+    u[0 * NX + i] = 0;
+  }
+  // u[:, 0] = 0
+  for(int i=0;i<NY;i++)
+  {
+    #pragma HLS PIPELINE II=1
+    u[i * NX + 0] = 0;
+  }
+  // u[:, -1] = 0
+  for(int i=0;i<NY;i++)
+  {
+    #pragma HLS PIPELINE II=1
+    u[i * NX + NX-1] = 0;
+  }
+  // u[-1, :] = 1
+  for(int i=0;i<NX;i++)
+  {
+    #pragma HLS PIPELINE II=1
+    u[(NY-1) * NX + i] = 1;
+  }
+
+  // v[0, :] = 0
+  for(int i=0;i<NX;i++)
+  {
+    #pragma HLS PIPELINE II=1
+    v[0 * NX + i] = 0;
+  }
+  // v[-1, :] = 0
+  for(int i=0;i<NX;i++)
+  {
+    #pragma HLS PIPELINE II=1
+    v[(NY-1) * NX + i] = 0;
+  }
+  // v[:, 0] = 0
+  for(int i=0;i<NY;i++)
+  {
+    #pragma HLS PIPELINE II=1
+    v[i * NX + 0] = 0;
+  }
+  // v[:, -1] = 0
+  for(int i=0;i<NY;i++)
+  {
+    #pragma HLS PIPELINE II=1
+    v[i * NX + NX-1] = 0;
+  }
+ 
 }
 
 void CavityFlow(float *u, float *v, float* p) {
@@ -473,5 +481,31 @@ void CavityFlow(float *u, float *v, float* p) {
   #pragma HLS INTERFACE s_axilite port=p bundle=control
   #pragma HLS INTERFACE s_axilite port=return bundle=control
 
-  CavityFlowFunc(u, v, p);
+  float u_tmp[NX * NY] = {0.0};
+  float v_tmp[NX * NY] = {0.0};
+  CavityFlowFunc(u_tmp, v_tmp);
+
+  for(int i=0;i<NX * NY;i++)
+  {
+    int row = i / NX;
+    int col = i % NX;
+    bool set = false;
+    if (row == 0 || col == 0 || col == (NX-1))
+    {
+      set = true;
+      u[i] = 0.0;
+      v[i] = 0.0;
+    }
+    if (row == (NY-1))
+    {
+      set = true;
+      u[i] = 1.0;
+      v[i] = 0.0;
+    }
+    if (!set)
+    {
+      u[i] = u_tmp[i];
+      v[i] = v_tmp[i];
+    }
+  }
 }
