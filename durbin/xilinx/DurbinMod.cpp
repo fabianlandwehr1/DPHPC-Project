@@ -230,6 +230,7 @@ void DurbinMod(float const *r, float *y_out) {
   #pragma HLS INTERFACE s_axilite port=y_out bundle=control
   #pragma HLS INTERFACE s_axilite port=return bundle=control
   
+  #pragma HLS DATAFLOW
   Stream<float, N> y[D + 1];
   Stream<float, N> alpha[D + 1];
   Stream<float, N> beta[D + 1];
@@ -238,14 +239,10 @@ void DurbinMod(float const *r, float *y_out) {
   alpha[0].Push(y_init);
   beta[0].Push(1.0);
 
-  // PEDriverFuncFirstIter(r[], y_inp, y_out, alpha_inp, alpha_out, beta_inp, beta_out, d)
-  // PEDriverFuncFirstIter(r, y[0], y[1], alpha[0], alpha[1], beta[0], beta[1], 0);
-
   int d_offset = D * 0;
   int initial_arg_2_init = d_offset == 0? 1: d_offset;
   int final_arg_2_init = d_offset + num_streams;
   
-  // #pragma HLS DATAFLOW
 
   Stream<float, N> y_original[num_streams+1];
   Stream<float, N> r_mod[num_streams+1];
@@ -259,14 +256,14 @@ void DurbinMod(float const *r, float *y_out) {
 
   HLSLIB_DATAFLOW_INIT();
 
-  HLSLIB_DATAFLOW_FUNCTION(InitYAlphaBeta, y_original[0] , y[0], alpha_original[0], alpha_original[0], beta_original[0], beta_original[0], initial_arg_2_init);
+  HLSLIB_DATAFLOW_FUNCTION(InitYAlphaBeta, y_original[0] , y[0], alpha_original[0], alpha[0], beta_original[0], beta[0], initial_arg_2_init);
   HLSLIB_DATAFLOW_FUNCTION(InitR, r_mod, r, d_offset);
   
   // for k in range(1, r.shape[0])
   int k;
   for(int loopIdx = 0;loopIdx<numItersFirstIter-1;loopIdx++)
   {
-    #pragma HLS UNROLL
+    // #pragma HLS UNROLL
     k = loopIdx+1;
     // #pragma HLS DEPENDENCE variable=r false
       // std::cout<<"Unrolling k "<< k<<std::endl;
@@ -278,12 +275,12 @@ void DurbinMod(float const *r, float *y_out) {
    
   HLSLIB_DATAFLOW_FUNCTION(InitYAlphaBeta, y[1], y_original[k], alpha[1], alpha_original[k], beta[1], beta_original[k], final_arg_2_init);
   HLSLIB_DATAFLOW_FINALIZE();
-  
+
   for(int i=1;i<D;i++)
   {
     // std::cout<<"Callign PEDriverFunc "<<i<<std::endl;
     // void PEDriverFuncMain(r[], y_inp, y_out, alpha_inp, alpha_out, beta_inp, beta_out, d)
-    // PEDriverFuncMain(r, y[i], y[i+1], alpha[i], alpha[i+1], beta[i], beta[i+1], i);
+    
     int numIters = N/D + 1;
     int d_offset = D * i;
     int initial_arg_2_init = d_offset == 0? 1: d_offset;
@@ -291,39 +288,38 @@ void DurbinMod(float const *r, float *y_out) {
     
     // #pragma HLS DATAFLOW
 
-    Stream<float, N> y_original[num_streams+1];
-    Stream<float, N> r_mod[num_streams+1];
-    Stream<float, N> y_unupdated[num_streams+1];
-    Stream<float, N> beta_original[num_streams+1];
-    Stream<float, N> alpha_original[num_streams+1];
-    Stream<float, N> alpha_interim[num_streams+1];
-    Stream<float, N> alpha_interim_sync[num_streams+1];
-    Stream<float, N> reverse_helper[num_streams+1];
-    Stream<float, N> y_reverse_supported[num_streams+1];
+    Stream<float, N> y_original2[num_streams+1];
+    Stream<float, N> r_mod2[num_streams+1];
+    Stream<float, N> y_unupdated2[num_streams+1];
+    Stream<float, N> beta_original2[num_streams+1];
+    Stream<float, N> alpha_original2[num_streams+1];
+    Stream<float, N> alpha_interim2[num_streams+1];
+    Stream<float, N> alpha_interim_sync2[num_streams+1];
+    Stream<float, N> reverse_helper2[num_streams+1];
+    Stream<float, N> y_reverse_supported2[num_streams+1];
 
     HLSLIB_DATAFLOW_INIT();
 
-    HLSLIB_DATAFLOW_FUNCTION(InitYAlphaBeta, y_original[0] , y[i], alpha_original[0], alpha[i], beta_original[0], beta[i], initial_arg_2_init);
-    HLSLIB_DATAFLOW_FUNCTION(InitR, r_mod, r, d_offset);
+    HLSLIB_DATAFLOW_FUNCTION(InitYAlphaBeta, y_original2[0] , y[i], alpha_original2[0], alpha[i], beta_original2[0], beta[i], initial_arg_2_init);
+    HLSLIB_DATAFLOW_FUNCTION(InitR, r_mod2, r, d_offset);
     
     // for k in range(1, r.shape[0])
     int k;
     for(int loopIdx = 0;loopIdx<numItersMain-1;loopIdx++)
     {
-      #pragma HLS UNROLL
+        // #pragma HLS UNROLL
 
-      k = loopIdx + 1;
-      // #pragma HLS DEPENDENCE variable=r false
+        k = loopIdx + 1;
+        // #pragma HLS DEPENDENCE variable=r false
         // std::cout<<"Unrolling k "<< k<<std::endl;
-      int newK = i == 0? k: k + d_offset-1;
-      HLSLIB_DATAFLOW_FUNCTION(ProcessingElement, r_mod[(i == 0)?(k):(k-1)], y_original[(k-1)], y_unupdated[(k-1)], beta_original[(k-1)], beta_original[(k)], alpha_original[(k-1)], alpha_interim[(k-1)], newK);
-      HLSLIB_DATAFLOW_FUNCTION(ReversePopulate, y_unupdated[(k-1)], y_reverse_supported[(k-1)], reverse_helper[(k-1)], alpha_interim[(k-1)], alpha_interim_sync[(k-1)], newK, newK);
-      HLSLIB_DATAFLOW_FUNCTION(UpdateY, y_reverse_supported[(k-1)], y_original[(k)], alpha_interim_sync[(k-1)], reverse_helper[(k-1)], alpha_original[(k)], newK);
+        int newK = i == 0? k: k + d_offset-1;
+        HLSLIB_DATAFLOW_FUNCTION(ProcessingElement, r_mod2[(i == 0)?(k):(k-1)], y_original2[(k-1)], y_unupdated2[(k-1)], beta_original2[(k-1)], beta_original2[(k)], alpha_original2[(k-1)], alpha_interim2[(k-1)], newK);
+        HLSLIB_DATAFLOW_FUNCTION(ReversePopulate, y_unupdated2[(k-1)], y_reverse_supported2[(k-1)], reverse_helper2[(k-1)], alpha_interim2[(k-1)], alpha_interim_sync2[(k-1)], newK, newK);
+        HLSLIB_DATAFLOW_FUNCTION(UpdateY, y_reverse_supported2[(k-1)], y_original2[(k)], alpha_interim_sync2[(k-1)], reverse_helper2[(k-1)], alpha_original2[(k)], newK);
     }
     
-    HLSLIB_DATAFLOW_FUNCTION(InitYAlphaBeta, y[i+1], y_original[k], alpha[i+1], alpha_original[k], beta[i+1], beta_original[k], final_arg_2_init);
+    HLSLIB_DATAFLOW_FUNCTION(InitYAlphaBeta, y[i+1], y_original2[k], alpha[i+1], alpha_original2[k], beta[i+1], beta_original2[k], final_arg_2_init);
     HLSLIB_DATAFLOW_FINALIZE();
-
   }
   // std::cout<<"reched final write"<<std::endl;
   WriteMemory(y[(D)], y_out, N);
