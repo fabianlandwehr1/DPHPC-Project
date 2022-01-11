@@ -73,9 +73,9 @@ void sum(Stream<DataPack<float, W>> &radius, Stream<DataPack<float, W>> &data, f
       float s6 = s3 + s4;
       float s7 = s5 + s6;
 
-      float n5 = n1 + n2;
-      float n6 = n3 + n4;
-      float n7 = n5 + n6;
+      int n5 = n1 + n2;
+      int n6 = n3 + n4;
+      int n7 = n5 + n6;
 
       sum[i] += s7;
       num[i] += n7;
