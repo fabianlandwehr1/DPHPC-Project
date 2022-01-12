@@ -1,3 +1,4 @@
-xilinx_synthesis_target("Gramschmidt_1" "" "Gramschmidt_1" "")
-xilinx_synthesis_target("Gramschmidt_2" "" "Gramschmidt_2" "")
-xilinx_synthesis_target("Gramschmidt_3" "" "Gramschmidt_3" "")
+xilinx_synthesis_target("GramSchmidt1" "" "GramSchmidt1" "")
+xilinx_synthesis_target("GramSchmidt2" "" "GramSchmidt2" "")
+xilinx_synthesis_target("GramSchmidt3" "" "GramSchmidt3" "")
+

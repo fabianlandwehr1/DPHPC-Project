@@ -3,7 +3,7 @@
 #include "hls_math.h"
 constexpr int N = 64;
 
-void compute(float *A, float *Q, float *R) {
+void ProcessingElement(float *A, float *Q, float *R) {
   float p[N];
   float s[N];
   for(int i=0; i<N; i++){
@@ -68,7 +68,8 @@ void compute(float *A, float *Q, float *R) {
   
 }
 
-void Gramschmidt_3(float *A, float *Q, float *R) {
+// Top-level entry function, not relevant for this example
+void GramSchmidt3(float *A, float *Q, float *R) {
   #pragma HLS INTERFACE m_axi port=A bundle=gmem0 offset=slave
   #pragma HLS INTERFACE m_axi port=Q bundle=gmem1 offset=slave
   #pragma HLS INTERFACE m_axi port=R bundle=gmem2 offset=slave
@@ -76,5 +77,6 @@ void Gramschmidt_3(float *A, float *Q, float *R) {
   #pragma HLS INTERFACE s_axilite port=Q
   #pragma HLS INTERFACE s_axilite port=R
   #pragma HLS INTERFACE s_axilite port=return
-  compute(A,Q,R);
+
+  ProcessingElement(A,Q,R);
 }
