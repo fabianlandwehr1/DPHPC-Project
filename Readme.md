@@ -10,6 +10,8 @@ _Field Programmable Gate Arrays (FPGA) offer an alternate computation platform i
 - **Cavity Flow:** [baseline](https://github.com/fabianlandwehr1/DPHPC-Project/blob/cavityflowNaive/cavity_flow/xilinx/CavityFlow.cpp) - [opt1](https://github.com/fabianlandwehr1/DPHPC-Project/blob/cavityFlowPipelined/cavity_flow/xilinx/CavityFlow.cpp)
 - **Conv2D:** [baseline](https://github.com/fabianlandwehr1/DPHPC-Project/blob/main/conv2d_bias/xilinx/naive/conv2d1.cpp) - [opt1](https://github.com/fabianlandwehr1/DPHPC-Project/blob/main/conv2d_bias/xilinx/buffered_and_vectorized/conv2d2.cpp) - [opt2](https://github.com/fabianlandwehr1/DPHPC-Project/blob/main/conv2d_bias/xilinx/with_loop_reordering_and_fully_pipelined/conv2d3.cpp)
 
+<p align="center"><img src="graphs/roofline.svg" /></p>
+
 ## Building
 
 Clone the repository (including definelicht/hlslib submodule):
